@@ -99,6 +99,14 @@
           sceneItemId: item.sceneItemId,
           sceneItemEnabled: false
         })
+        let data = null
+        data = await sendCommand('GetInputSettings', {
+          inputName: 'test'
+        })
+        data = await sendCommand('SetInputSettings', {
+          inputName: 'test',
+          inputSettings: data.inputSettings
+        })
       }
       else {
         await sendCommand('SetSceneItemEnabled', {
