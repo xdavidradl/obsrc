@@ -39,6 +39,7 @@
   import ProfileSelect from './ProfileSelect.svelte'
   import SceneCollectionSelect from './SceneCollectionSelect.svelte'
   import TabSwitcher from './TabSwitcher.svelte'
+  import TwitchChat from './TwitchChat.svelte'
 
   onMount(async () => {
     if ('serviceWorker' in navigator) {
@@ -508,12 +509,15 @@
         bind:programScene
         bind:programSources
         hidden={currentTab !== TAB_SOURCES}
-        {imageFormat}
         buttonStyle='screenshot'
       />
-      <ProgramPreview {imageFormat}
-        hidden={currentTab !== TAB_PREVIEW}
-      />
+      <div class="overlaybottom">
+        <ProgramPreview
+          {imageFormat}
+          hidden={currentTab !== TAB_PREVIEW}
+        />
+        <TwitchChat class="overlaytop"/>
+      </div>
     {:else}
       <h1 class="subtitle">
         Welcome to

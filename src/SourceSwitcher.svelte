@@ -93,20 +93,22 @@
 
   function backgroundClicker (item) {
     return async function () {
+      let data = null
+      //console.log('item', item)
+      //This is a fix if a camera was disconnected. Resetting the settings seems to reload the stream/device
+      data = await sendCommand('GetInputSettings', {
+        inputUuid: item.sourceUuid
+      })
+      //console.log('1 GetInputSettings', data)
       if (item.sceneItemEnabled) {
         await sendCommand('SetSceneItemEnabled', {
           sceneName: programScene,
           sceneItemId: item.sceneItemId,
           sceneItemEnabled: false
         })
-        let data = null
-        data = await sendCommand('GetInputSettings', {
-          inputName: 'test'
-        })
-        data = await sendCommand('SetInputSettings', {
-          inputName: 'test',
-          inputSettings: data.inputSettings
-        })
+        if (data && data.inputSettings && 'active' in data.inputSettings) {
+          data.inputSettings.active = false
+        }
       }
       else {
         await sendCommand('SetSceneItemEnabled', {
@@ -114,7 +116,15 @@
           sceneItemId: item.sceneItemId,
           sceneItemEnabled: true
         })
+        if (data && data.inputSettings && 'active' in data.inputSettings) {
+          data.inputSettings.active = true
+        }
       }
+      //console.log('2 GetInputSettings', data)
+      await sendCommand('SetInputSettings', {
+        inputUuid: item.sourceUuid,
+        inputSettings: data.inputSettings
+      })
     }
   }
 
