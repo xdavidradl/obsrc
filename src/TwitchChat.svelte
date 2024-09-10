@@ -42,57 +42,67 @@
     }
 </script>
 
-<div bind:this={chatDiv} class="chat" on:scroll={handleScroll}>
+<div 
+    bind:this={chatDiv}
+    class="chat-container"
+    on:scroll={handleScroll}>
+
     {#each messages as message}
         <p><strong style="color: {message.color}">{message.username}:</strong> {message.message}</p>
     {/each}
+
+    {#if showJumpButton}
+        <button class="jump-to-bottom" on:click={scrollToBottom}>
+            Jump to bottom
+        </button>
+    {/if}
 </div>
 
-{#if showJumpButton}
-    <button class="jump-to-bottom" on:click={scrollToBottom}>
-        Jump to bottom
-    </button>
-{/if}
+
 
 <style>
-    .chat {
+    .chat-container {
+        position: relative;
         max-height: 200px;
-        overflow-y: scroll;
-        background: #b1acac;
-        color: black;
+        overflow-y: auto;
+        background: rgb(30, 30, 30);
+        opacity: 0.8;
+        color: rgb(255, 255, 255);
         padding: 10px;
         border-radius: 5px;
         font-family: Arial, sans-serif;
     }
 
-    .chat p {
+    .chat-container p {
         margin: 5px 0;
         line-height: 1.2;
     }
 
-    .chat::-webkit-scrollbar {
+    .chat-container::-webkit-scrollbar {
         display: none;
     }
 
-    .chat {
+    .chat-container {
         scrollbar-width: none;
     }
 
     .jump-to-bottom {
-        /*position: fixed;
-        bottom: 50px;
-        right: 20px;*/
-        padding: 10px 20px;
-        background-color: #007bff;
-        color: white;
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 10px;
+        background-color: rgb(0, 123, 255);
+        color: rgb(255, 255, 255);
         border: none;
         border-radius: 5px;
         cursor: pointer;
+        opacity: 0.8;
         z-index: 1000;
-        display: block;
+        text-align: center;
     }
 
     .jump-to-bottom:hover {
-        background-color: #0056b3;
+        opacity: 1;
     }
 </style>
