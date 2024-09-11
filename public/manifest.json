@@ -5,9 +5,9 @@
   "orientation": "landscape",
   "scope": "/",
   "start_url": "/",
-  "name": "OBS-web",
-  "short_name": "OBS-web",
-  "description": "OBS-web - The easiest way to control OBS remotely",
+  "name": "OBS",
+  "short_name": "OBS",
+  "description": "OBS",
   "prefer_related_applications": false,
   "icons": [
     {

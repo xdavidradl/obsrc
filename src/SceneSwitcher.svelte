@@ -4,36 +4,18 @@
   import SourceButton from './SourceButton.svelte'
 
   export let programScene = {}
-  export let previewScene = {}
   export let scenes = []
   export let buttonStyle = 'text' // text, screenshot, icon
-  export let hidden = true
 
   let scenesFiltered = []
-  let isStudioMode = false
-  const sceneIcons = JSON.parse(window.localStorage.getItem('sceneIcons') || '{}')
 
   $: scenesFiltered = scenes.filter((scene) => scene.sceneName.indexOf('(hidden)') === -1).reverse()
-  // store sceneIcons on change
-  $: window.localStorage.setItem('sceneIcons', JSON.stringify(sceneIcons))
 
   onMount(async function () {
     let data = await sendCommand('GetSceneList')
     console.log('GetSceneList', data)
     programScene = data.currentProgramSceneName || ''
-    previewScene = data.currentPreviewSceneName
     scenes = data.scenes
-    data = await sendCommand('GetStudioModeEnabled')
-    if (data && data.studioModeEnabled) {
-      isStudioMode = true
-      previewScene = data.currentPreviewSceneName || ''
-    }
-  })
-
-  obs.on('StudioModeStateChanged', async (data) => {
-    console.log('StudioModeStateChanged', data.studioModeEnabled)
-    isStudioMode = data.studioModeEnabled
-    previewScene = programScene
   })
 
   obs.on('SceneListChanged', async (data) => {
@@ -70,26 +52,10 @@
     programScene = data.sceneName || ''
   })
 
-  obs.on('CurrentPreviewSceneChanged', async (data) => {
-    console.log('CurrentPreviewSceneChanged', data)
-    previewScene = data.sceneName
-  })
-
   function sceneClicker (scene) {
     return async function () {
-      if (isStudioMode) {
-        await sendCommand('SetCurrentPreviewScene', { sceneName: scene.sceneName })
-      } else {
-        await sendCommand('SetCurrentProgramScene', { sceneName: scene.sceneName })
-      }
+      await sendCommand('SetCurrentProgramScene', { sceneName: scene.sceneName })
     }
-  }
-
-  function onNameChange (event) {
-    sendCommand('SetSceneName', { sceneName: event.target.title, newSceneName: event.target.value })
-  }
-  function onIconChange (event) {
-    sceneIcons[event.target.title] = event.target.value
   }
 </script>
 
@@ -98,13 +64,10 @@
   >
   {#each scenesFiltered as scene}
   <li>
-    <SourceButton name={scene.sceneName} subname={null}
+    <SourceButton name={scene.sceneName}
       on:click={sceneClicker(scene)}
       isProgram={programScene === scene.sceneName}
-      isPreview={previewScene === scene.sceneName}
       buttonStyle={buttonStyle}
-      hidden={hidden}
-      icon={sceneIcons[scene.sceneName] || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
     />
   </li>
   {/each}

@@ -17,7 +17,7 @@
 <ol>
   {#each tabs as tab}
   <li>
-    <SourceButton name={tab.name} subname={tab.subname}
+    <SourceButton name={tab.name}
       on:click={TabClicker(tab)}
       isProgram={currentTab === tab.index}
       buttonStyle={buttonStyle}

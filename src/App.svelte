@@ -8,25 +8,11 @@
   // Imports
   import { onMount } from 'svelte'
   import {
-    mdiSquareRoundedBadge,
-    mdiSquareRoundedBadgeOutline,
-    mdiImageEdit,
-    mdiImageEditOutline,
     mdiFullscreen,
     mdiFullscreenExit,
-    mdiBorderVertical,
-    mdiArrowSplitHorizontal,
     mdiAccessPoint,
     mdiAccessPointOff,
-    mdiRecord,
-    mdiStop,
-    mdiPause,
-    mdiPlayPause,
     mdiConnection,
-    mdiCameraOff,
-    mdiCamera,
-    mdiMotionPlayOutline,
-    mdiMotionPlay
   } from '@mdi/js'
   import Icon from 'mdi-svelte'
   import { compareVersions } from 'compare-versions'
@@ -85,7 +71,7 @@
       address = document.location.hash.slice(1)
 
       // This allows you to add a password in the URL like this:
-      // http://obs-web.niek.tv/#ws://localhost:4455#password
+      // http://192.168.1.10/#ws://localhost:4455#password
       if (address.includes('#')) {
         [address, password] = address.split('#')
       }
@@ -101,40 +87,22 @@
   let heartbeat = {}
   let heartbeatInterval
   let isFullScreen
-  let isStudioMode
-  let isVirtualCamActive
-  let isIconMode = window.localStorage.getItem('isIconMode') || false
-  let isReplaying
   let address
   let password
   let scenes = []
   let programScene = {}
   let programSources = ''
-  let replayError = ''
   let errorMessage = ''
   let imageFormat = 'jpg'
   let currentTab = Number(window.localStorage.getItem('currentTab')) || TAB_SCENES
   
   let tabs = [
-    { index: TAB_SCENES, name: 'Scenes', subname: null},
-    { index: TAB_SOURCES, name: 'Sources', subname: null },
-    { index: TAB_PREVIEW, name: 'Preview', subname: null }]
-
-
-  $: isIconMode
-    ? window.localStorage.setItem('isIconMode', 'true')
-    : window.localStorage.removeItem('isIconMode')
+    { index: TAB_SCENES, name: 'Scenes'},
+    { index: TAB_SOURCES, name: 'Sources'},
+    { index: TAB_PREVIEW, name: 'Preview'}]
 
   $: window.localStorage.setItem('currentTab', currentTab)
   
-  $: if (programScene) {
-    tabs[TAB_SCENES].subname = programScene
-  }
-
-  $: if (programSources) {
-    tabs[TAB_SOURCES].subname = programSources
-  }
-
   function formatTime (secs) {
     secs = Math.round(secs / 1000)
     const hours = Math.floor(secs / 3600)
@@ -166,53 +134,12 @@
     }
   }
 
-  async function toggleStudioMode () {
-    await sendCommand('SetStudioModeEnabled', {
-      studioModeEnabled: !isStudioMode
-    })
-  }
-
-  async function toggleReplay () {
-    const data = await sendCommand('ToggleReplayBuffer')
-    console.debug('ToggleReplayBuffer', data.outputActive)
-    if (data.outputActive === undefined) {
-      replayError = 'Replay buffer is not enabled.'
-      setTimeout(function () {
-        replayError = ''
-      }, 5000)
-    } else isReplaying = data.outputActive
-  }
-
   async function startStream () {
     await sendCommand('StartStream')
   }
 
   async function stopStream () {
     await sendCommand('StopStream')
-  }
-
-  async function startRecording () {
-    await sendCommand('StartRecord')
-  }
-
-  async function stopRecording () {
-    await sendCommand('StopRecord')
-  }
-
-  async function startVirtualCam () {
-    await sendCommand('StartVirtualCam')
-  }
-
-  async function stopVirtualCam () {
-    await sendCommand('StopVirtualCam')
-  }
-
-  async function pauseRecording () {
-    await sendCommand('PauseRecord')
-  }
-
-  async function resumeRecording () {
-    await sendCommand('ResumeRecord')
   }
 
   async function connect () {
@@ -281,14 +208,9 @@
     heartbeatInterval = setInterval(async () => {
       const stats = await sendCommand('GetStats')
       const streaming = await sendCommand('GetStreamStatus')
-      const recording = await sendCommand('GetRecordStatus')
-      heartbeat = { stats, streaming, recording }
+      heartbeat = { stats, streaming }
       // console.log(heartbeat);
     }, 1000) // Heartbeat
-    isStudioMode =
-      (await sendCommand('GetStudioModeEnabled')).studioModeEnabled || false
-    isVirtualCamActive =
-      (await sendCommand('GetVirtualCamStatus')).outputActive || false
   })
 
   obs.on('ConnectionError', async () => {
@@ -300,31 +222,16 @@
       await connect()
     }
   })
-
-  obs.on('VirtualcamStateChanged', async (data) => {
-    console.log('VirtualcamStateChanged', data.outputActive)
-    isVirtualCamActive = data && data.outputActive
-  })
-
-  obs.on('StudioModeStateChanged', async (data) => {
-    console.log('StudioModeStateChanged', data.studioModeEnabled)
-    isStudioMode = data && data.studioModeEnabled
-  })
-
-  obs.on('ReplayBufferStateChanged', async (data) => {
-    console.log('ReplayBufferStateChanged', data)
-    isReplaying = data && data.outputActive
-  })
 </script>
 
 <svelte:head>
-  <title>OBS-web remote control</title>
+  <title>OBS</title>
 </svelte:head>
 
 <nav class="navbar is-primary" aria-label="main navigation">
   <div class="navbar-brand">
     <a class="navbar-item is-size-4 has-text-weight-bold" href="/">
-      <img src="favicon.png" alt="OBS-web" class="rotate" /></a
+      <img src="favicon.png" alt="OBS" class="rotate" /></a
     >
 
     <!-- svelte-ignore a11y-missing-attribute -->
@@ -371,94 +278,6 @@
                 <span class="icon"><Icon path={mdiAccessPoint} /></span>
               </button>
             {/if}
-            {#if heartbeat && heartbeat.recording && heartbeat.recording.outputActive}
-              {#if heartbeat.recording.outputPaused}
-                <button
-                  class="button is-danger"
-                  on:click={resumeRecording}
-                  title="Resume Recording"
-                >
-                  <span class="icon"><Icon path={mdiPlayPause} /></span>
-                </button>
-              {:else}
-                <button
-                  class="button is-success"
-                  on:click={pauseRecording}
-                  title="Pause Recording"
-                >
-                  <span class="icon"><Icon path={mdiPause} /></span>
-                </button>
-              {/if}
-              <button
-                class="button is-danger"
-                on:click={stopRecording}
-                title="Stop Recording"
-              >
-                <span class="icon"><Icon path={mdiStop} /></span>
-                <span>{formatTime(heartbeat.recording.outputDuration)}</span>
-              </button>
-            {:else}
-              <button
-                class="button is-danger is-light"
-                on:click={startRecording}
-                title="Start Recording"
-              >
-                <span class="icon"><Icon path={mdiRecord} /></span>
-              </button>
-            {/if}
-            {#if isVirtualCamActive}
-              <button
-                class="button is-danger"
-                on:click={stopVirtualCam}
-                title="Stop Virtual Webcam"
-              >
-                <span class="icon"><Icon path={mdiCameraOff} /></span>
-              </button>
-            {:else}
-              <button
-                class="button is-danger is-light"
-                on:click={startVirtualCam}
-                title="Start Virtual Webcam"
-              >
-                <span class="icon"><Icon path={mdiCamera} /></span>
-              </button>
-            {/if}
-            <button
-              class:is-light={!isStudioMode}
-              class="button is-link"
-              on:click={toggleStudioMode}
-              title="Toggle Studio Mode"
-            >
-              <span class="icon"><Icon path={mdiBorderVertical} /></span>
-            </button>
-            <button
-              class:is-light={!isIconMode}
-              class="button is-link"
-              title="Show Scenes as Icons"
-              on:click={() => (isIconMode = !isIconMode)}
-            >
-              <span class="icon">
-                <Icon
-                  path={isIconMode
-                    ? mdiSquareRoundedBadgeOutline
-                    : mdiSquareRoundedBadge}
-                />
-              </span>
-            </button>
-            <button
-              class:is-light={!isReplaying}
-              class:is-danger={replayError}
-              class="button is-link"
-              title="Toggle Replay Buffer"
-              on:click={toggleReplay}
-            >
-              <span class="icon">
-                <Icon
-                  path={isReplaying ? mdiMotionPlayOutline : mdiMotionPlay}
-                />
-              </span>
-              {#if replayError}<span>{replayError}</span>{/if}
-            </button>
             <ProfileSelect />
             <SceneCollectionSelect />
             <button
@@ -498,26 +317,27 @@
         bind:currentTab
         buttonStyle={'text'}
       />
-      <SceneSwitcher
-        bind:scenes
-        bind:programScene
-        buttonStyle='text'
-        hidden={currentTab !== TAB_SCENES}
-      />
-      <SourceSwitcher
-        bind:programScene
-        bind:programSources
-        hidden={currentTab !== TAB_SOURCES}
-        buttonStyle='screenshot'
-      />
-      <ProgramPreview
-        {imageFormat}
-        hidden={currentTab !== TAB_PREVIEW}
-      />
+      {#if currentTab === TAB_SCENES}
+        <SceneSwitcher
+          bind:scenes
+          bind:programScene
+          buttonStyle='text'
+        />
+      {:else if currentTab === TAB_SOURCES}
+        <SourceSwitcher
+          bind:programScene
+          bind:programSources
+          buttonStyle='text'
+        />
+      {:else if currentTab === TAB_PREVIEW}
+        <ProgramPreview
+          {imageFormat}
+        />
+      {/if}
     {:else}
       <h1 class="subtitle">
         Welcome to
-        <strong>OBS-web</strong>
+        <strong>OBS</strong>
         - the easiest way to control
         <a href="https://obsproject.com/" target="_blank" rel="noreferrer"
           >OBS</a
@@ -579,29 +399,7 @@
         Make sure that you use <a
           href="https://github.com/obsproject/obs-studio/releases">OBS v28+</a
         >
-        or install the
-        <a
-          href="https://github.com/obsproject/obs-websocket/releases/tag/{OBS_WEBSOCKET_LATEST_VERSION}"
-          target="_blank"
-          rel="noreferrer"
-          >obs-websocket {OBS_WEBSOCKET_LATEST_VERSION} plugin</a
-        >
-        for v27. If you use an older version of OBS, see the
-        <a href="/v4/">archived OBS-web v4</a> page.
       </p>
     {/if}
   </div>
 </section>
-
-<footer class="footer">
-  <div class="content has-text-centered">
-    <p>
-      <strong>OBS-web</strong>
-      by
-      <a href="https://niekvandermaas.nl/">Niek van der Maas</a>
-      &mdash; see
-      <a href="https://github.com/Niek/obs-web">GitHub</a>
-      for source code.
-    </p>
-  </div>
-</footer>
