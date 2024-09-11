@@ -13,22 +13,22 @@
 
   onMount(async function () {
     let data = await sendCommand('GetSceneList')
-    console.log('GetSceneList', data)
+    //console.log('GetSceneList', data)
     programScene = data.currentProgramSceneName || ''
     scenes = data.scenes
   })
 
   obs.on('SceneListChanged', async (data) => {
-    console.log('SceneListChanged', data.scenes.length)
+    //console.log('SceneListChanged', data.scenes.length)
     scenes = data.scenes
   })
 
   obs.on('SceneCreated', async (data) => {
-    console.log('SceneCreated', data)
+    //console.log('SceneCreated', data)
   })
 
   obs.on('SceneRemoved', async (data) => {
-    console.log('SceneRemoved', data)
+    //console.log('SceneRemoved', data)
     for (let i = 0; i < scenes.length; i++) {
       if (scenes[i].sceneName === data.sceneName) {
         delete scenes[i]
@@ -37,7 +37,7 @@
   })
 
   obs.on('SceneNameChanged', async (data) => {
-    console.log('SceneNameChanged', data)
+    //console.log('SceneNameChanged', data)
     for (let i = 0; i < scenes.length; i++) {
       if (scenes[i].sceneName === data.oldSceneName) {
         scenes[i].sceneName = data.sceneName
@@ -48,7 +48,7 @@
   })
 
   obs.on('CurrentProgramSceneChanged', (data) => {
-    console.log('CurrentProgramSceneChanged', data)
+    //console.log('CurrentProgramSceneChanged', data)
     programScene = data.sceneName || ''
   })
 

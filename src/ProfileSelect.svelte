@@ -12,11 +12,11 @@
   })
 
   obs.on('CurrentProfileChanged', async (data) => {
-    console.log('CurrentProfileChanged', data.profileName)
+    //console.log('CurrentProfileChanged', data.profileName)
     currentProfile = data.profileName || ''
   })
   obs.on('ProfileListChanged', async (data) => {
-    console.log('ProfileListChanged', data.profiles.length)
+    //console.log('ProfileListChanged', data.profiles.length)
     profiles = data.profiles || []
   })
 

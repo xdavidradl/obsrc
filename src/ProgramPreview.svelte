@@ -30,7 +30,7 @@
   $: getScreenshot(), programScene
 
   obs.on('CurrentProgramSceneChanged', async (data) => {
-    console.log('CurrentProgramSceneChanged', data.sceneName)
+    //console.log('CurrentProgramSceneChanged', data.sceneName)
     programScene = data.sceneName
   })
 
@@ -60,6 +60,12 @@
   let isAtBottom = true
   let showJumpButton = false
 
+  const mainColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink']
+
+  function getRandomColor() {
+    return mainColors[Math.floor(Math.random() * mainColors.length)]
+  }
+
   const client = new Client({
       channels: ['davidradl']
   })
@@ -67,14 +73,16 @@
   client.connect();   
 
   client.on('message', (channel, tags, message, self) => {
-      //if (tags['color'] == )
+      if (!tags['color']) {
+        tags['color'] = getRandomColor()
+      }
       let newMessage = { username: tags['display-name'], color: tags['color'], message}
-      console.log('<', tags['color'], '> ', tags['display-name'], ': ', message)
+      //console.log('<', tags['color'], '> ', tags['display-name'], ': ', message)
       messages = [...messages, newMessage]
       if (messages.length > 100) {
         messages.shift()
       }
-      console.log(messages.length)
+      //console.log(messages.length)
   })
 
   async function scrollToBottom() {

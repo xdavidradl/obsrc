@@ -3,7 +3,8 @@
   const OBS_WEBSOCKET_LATEST_VERSION = '5.0.1' // https://api.github.com/repos/Palakis/obs-websocket/releases/latest
   const TAB_SCENES = 0
   const TAB_SOURCES = 1
-  const TAB_PREVIEW = 2
+  const TAB_AUDIO = 2
+  const TAB_PREVIEW = 3
 
   // Imports
   import { onMount } from 'svelte'
@@ -99,6 +100,7 @@
   let tabs = [
     { index: TAB_SCENES, name: 'Scenes'},
     { index: TAB_SOURCES, name: 'Sources'},
+    { index: TAB_AUDIO, name: 'Audio'},
     { index: TAB_PREVIEW, name: 'Preview'}]
 
   $: window.localStorage.setItem('currentTab', currentTab)
@@ -148,16 +150,16 @@
       const secure = location.protocol === 'https:' || address.endsWith(':443')
       address = secure ? 'wss://' : 'ws://' + address
     }
-    console.log('Connecting to:', address, '- using password:', password)
+    //console.log('Connecting to:', address, '- using password:', password)
     await disconnect()
     try {
       const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(
         address,
         password
       )
-      console.log(
-        `Connected to obs-websocket version ${obsWebSocketVersion} (using RPC ${negotiatedRpcVersion})`
-      )
+      //console.log(
+      //  `Connected to obs-websocket version ${obsWebSocketVersion} (using RPC ${negotiatedRpcVersion})`
+      //)
     } catch (e) {
       console.log(e)
       errorMessage = e.message
@@ -179,16 +181,16 @@
       document.title,
       window.location.pathname + window.location.search
     ) // Remove the hash
-    console.log('Connection closed')
+    //console.log('Connection closed')
   })
 
   obs.on('Identified', async () => {
-    console.log('Connected')
+    //console.log('Connected')
     connected = true
     document.location.hash = address // For easy bookmarking
     const data = await sendCommand('GetVersion')
     const version = data.obsWebSocketVersion || ''
-    console.log('OBS-websocket version:', version)
+    //console.log('OBS-websocket version:', version)
     if (compareVersions(version, OBS_WEBSOCKET_LATEST_VERSION) < 0) {
       alert(
         'You are running an outdated OBS-websocket (version ' +
@@ -329,6 +331,8 @@
           bind:programSources
           buttonStyle='text'
         />
+      {:else if currentTab === TAB_AUDIO}
+        <p>Audio</p>
       {:else if currentTab === TAB_PREVIEW}
         <ProgramPreview
           {imageFormat}
