@@ -26,6 +26,7 @@
   import ProfileSelect from './ProfileSelect.svelte'
   import SceneCollectionSelect from './SceneCollectionSelect.svelte'
   import TabSwitcher from './TabSwitcher.svelte'
+  import AudioSwitcher from './AudioSwitcher.svelte'
 
   onMount(async () => {
     if ('serviceWorker' in navigator) {
@@ -332,7 +333,7 @@
           buttonStyle='text'
         />
       {:else if currentTab === TAB_AUDIO}
-        <p>Audio</p>
+        <AudioSwitcher/>
       {:else if currentTab === TAB_PREVIEW}
         <ProgramPreview
           {imageFormat}
