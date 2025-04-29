@@ -5,9 +5,9 @@
 
   export let programScene = {}
   export let scenes = []
-  export let buttonStyle = 'text' // text, screenshot, icon
 
   let scenesFiltered = []
+  let isSceneListVisible = true;
 
   $: scenesFiltered = scenes.filter((scene) => scene.sceneName.indexOf('(hidden)') === -1).reverse()
 
@@ -16,6 +16,11 @@
     //console.log('GetSceneList', data)
     programScene = data.currentProgramSceneName || ''
     scenes = data.scenes
+
+    const savedState = localStorage.getItem('isSceneListVisible');
+    if (savedState !== null) {
+      isSceneListVisible = JSON.parse(savedState); // String in Boolean umwandeln
+    }
   })
 
   obs.on('SceneListChanged', async (data) => {
@@ -57,42 +62,46 @@
       await sendCommand('SetCurrentProgramScene', { sceneName: scene.sceneName })
     }
   }
+
+  function toggleListVisibility() {
+    isSceneListVisible = !isSceneListVisible; // Sichtbarkeit umschalten
+    localStorage.setItem('isSceneListVisible', JSON.stringify(isSceneListVisible)); // Zustand speichern
+  }
 </script>
 
-<ol
-  class:with-icon={buttonStyle === 'icon'}
-  >
-  {#each scenesFiltered as scene}
-  <li>
-    <SourceButton name={scene.sceneName}
-      on:click={sceneClicker(scene)}
-      isProgram={programScene === scene.sceneName}
-      buttonStyle={buttonStyle}
-    />
-  </li>
-  {/each}
-</ol>
+<div class="scene-switcher">
+  <h2>
+    <strong>
+      <button class="toggle-button" on:click={toggleListVisibility}>
+        {isSceneListVisible ? '▼ Scenes' : '▶ Scenes'}
+      </button>
+    </strong>
+  </h2>
+  {#if isSceneListVisible}
+    <ol>
+      {#each scenesFiltered as scene}
+        <li>
+          <SourceButton
+            name={scene.sceneName}
+            on:click={sceneClicker(scene)}
+            isActive={programScene === scene.sceneName}
+          />
+        </li>
+      {/each}
+    </ol>
+  {/if}
+</div>
 
 <style>
   ol {
+    width: 100%;
     list-style: None;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: .5rem;
+    display: block;
     margin-bottom: 2rem;
   }
   li {
-    display: inline-block;
-    min-width: 10rem;
-    flex-grow: 1;
-  }
-  ol.with-icon {
-    justify-content: center;
-  }
-  ol.with-icon li {
-    min-width: 0;
-    flex-grow: 0;
-    flex-shrink: 1;
+    display: block;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 </style>

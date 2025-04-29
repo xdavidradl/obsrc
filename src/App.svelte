@@ -1,10 +1,6 @@
 <script>
   /* eslint-env browser */
   const OBS_WEBSOCKET_LATEST_VERSION = '5.0.1' // https://api.github.com/repos/Palakis/obs-websocket/releases/latest
-  const TAB_SCENES = 0
-  const TAB_SOURCES = 1
-  const TAB_AUDIO = 2
-  const TAB_PREVIEW = 3
 
   // Imports
   import { onMount } from 'svelte'
@@ -20,13 +16,12 @@
 
   import './style.scss'
   import { obs, sendCommand } from './obs.js'
-  import ProgramPreview from './ProgramPreview.svelte'
   import SceneSwitcher from './SceneSwitcher.svelte'
   import SourceSwitcher from './SourceSwitcher.svelte'
   import ProfileSelect from './ProfileSelect.svelte'
   import SceneCollectionSelect from './SceneCollectionSelect.svelte'
-  import TabSwitcher from './TabSwitcher.svelte'
   import AudioSwitcher from './AudioSwitcher.svelte'
+  import { OBSWebSocketError } from 'obs-websocket-js';
 
   onMount(async () => {
     if ('serviceWorker' in navigator) {
@@ -93,19 +88,9 @@
   let password
   let scenes = []
   let programScene = {}
-  let programSources = ''
   let errorMessage = ''
   let imageFormat = 'jpg'
-  let currentTab = Number(window.localStorage.getItem('currentTab')) || TAB_SCENES
-  
-  let tabs = [
-    { index: TAB_SCENES, name: 'Scenes'},
-    { index: TAB_SOURCES, name: 'Sources'},
-    { index: TAB_AUDIO, name: 'Audio'},
-    { index: TAB_PREVIEW, name: 'Preview'}]
 
-  $: window.localStorage.setItem('currentTab', currentTab)
-  
   function formatTime (secs) {
     secs = Math.round(secs / 1000)
     const hours = Math.floor(secs / 3600)
@@ -146,24 +131,27 @@
   }
 
   async function connect () {
-    address = address || 'ws://localhost:4455'
-    if (address.indexOf('://') === -1) {
-      const secure = location.protocol === 'https:' || address.endsWith(':443')
-      address = secure ? 'wss://' : 'ws://' + address
+    if (address)
+    {
+      if (address.indexOf('://') === -1) {
+        const secure = location.protocol === 'https:' || address.endsWith(':443')
+        address = secure ? 'wss://' : 'ws://' + address
+      }
+      //console.log('Connecting to:', address, '- using password:', password)
+      await disconnect()
+      try {
+        const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(
+          address,
+          password
+        )
+        //console.log(`Connected to obs-websocket version ${obsWebSocketVersion} (using RPC ${negotiatedRpcVersion})`)
+      } catch (e) {
+        console.log(e)
+        errorMessage = e.message
+      }
     }
-    //console.log('Connecting to:', address, '- using password:', password)
-    await disconnect()
-    try {
-      const { obsWebSocketVersion, negotiatedRpcVersion } = await obs.connect(
-        address,
-        password
-      )
-      //console.log(
-      //  `Connected to obs-websocket version ${obsWebSocketVersion} (using RPC ${negotiatedRpcVersion})`
-      //)
-    } catch (e) {
-      console.log(e)
-      errorMessage = e.message
+    else {
+      errorMessage = 'Please enter a valid address.'
     }
   }
 
@@ -228,13 +216,13 @@
 </script>
 
 <svelte:head>
-  <title>OBS</title>
+  <title>OBSrc.com</title>
 </svelte:head>
 
 <nav class="navbar is-primary" aria-label="main navigation">
   <div class="navbar-brand">
     <a class="navbar-item is-size-4 has-text-weight-bold" href="/">
-      <img src="favicon.png" alt="OBS" class="rotate" /></a
+      OBSrc.com</a
     >
 
     <!-- svelte-ignore a11y-missing-attribute -->
@@ -313,98 +301,52 @@
 </nav>
 
 <section class="section">
-  <div class="container">
     {#if connected}
-      <TabSwitcher
-        bind:tabs
-        bind:currentTab
-        buttonStyle={'text'}
-      />
-      {#if currentTab === TAB_SCENES}
+      <div class="container">
         <SceneSwitcher
           bind:scenes
           bind:programScene
-          buttonStyle='text'
         />
-      {:else if currentTab === TAB_SOURCES}
         <SourceSwitcher
           bind:programScene
-          bind:programSources
-          buttonStyle='text'
         />
-      {:else if currentTab === TAB_AUDIO}
         <AudioSwitcher/>
-      {:else if currentTab === TAB_PREVIEW}
-        <ProgramPreview
-          {imageFormat}
-        />
-      {/if}
+      </div>
     {:else}
-      <h1 class="subtitle">
-        Welcome to
-        <strong>OBS</strong>
-        - the easiest way to control
-        <a href="https://obsproject.com/" target="_blank" rel="noreferrer"
-          >OBS</a
-        >
-        remotely!
-      </h1>
+      <div class="no-wrap-conainer">
+        <h1 class="subtitle">
+          Welcome to
+          <strong>OBSrc.com</strong>
+        </h1>
 
-      {#if document.location.protocol === 'https:'}
-        <div class="notification is-danger">
-          You are checking this page on a secure HTTPS connection. That's great,
-          but it means you can
-          <strong>only</strong>
-          connect to WSS (secure websocket) addresses, for example OBS exposed with
-          <a href="https://ngrok.com/">ngrok</a>
-          or
-          <a href="https://pagekite.net/">pagekite</a>
-          . If you want to connect to a local OBS instance,
-          <strong>
-            <a
-              href="http://{document.location.hostname}{document.location.port
-                ? ':' + document.location.port
-                : ''}{document.location.pathname}"
-            >
-              please click here to load the non-secure version of this page
-            </a>
-          </strong>
-          .
-        </div>
-      {/if}
+        <p>Enter your OBS remote control url and password below and click "Connect".</p>
 
-      <p>To get started, enter your OBS host:port below and click "connect".</p>
-
-      <form on:submit|preventDefault={connect}>
-        <div class="field is-grouped">
-          <p class="control is-expanded">
-            <input
-              id="host"
-              bind:value={address}
-              class="input"
-              type="text"
-              autocomplete=""
-              placeholder="ws://localhost:4455"
-            />
-            <input
-              id="password"
-              bind:value={password}
-              class="input"
-              type="password"
-              autocomplete="current-password"
-              placeholder="password (leave empty if you have disabled authentication)"
-            />
-          </p>
-          <p class="control">
-            <button class="button is-success">Connect</button>
-          </p>
-        </div>
-      </form>
-      <p class="help">
-        Make sure that you use <a
-          href="https://github.com/obsproject/obs-studio/releases">OBS v28+</a
-        >
-      </p>
+        <form on:submit|preventDefault={connect}>
+          <div class="field is-grouped">
+            <p class="control is-expanded">
+              <input
+                id="username"
+                bind:value={address}
+                class="input"
+                type="text"
+                autocomplete="username"
+                placeholder="wss://obsrc.com/obs-relay/remote-controller/12345678-1234-1234-1234-123456789123"
+              />
+              <input
+                id="password"
+                bind:value={password}
+                class="input"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                placeholder="password"
+              />
+            </p>
+            <p class="control">
+              <button class="button is-success">Connect</button>
+            </p>
+          </div>
+        </form>
+      </div> 
     {/if}
-  </div>
 </section>

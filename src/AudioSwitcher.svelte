@@ -9,6 +9,7 @@
   //import SourceButton from './SourceButton.svelte'
 
   let inputs = []
+  let isAudioListVisible = true;
   //export let buttonStyle = 'text' // text, screenshot, icon
 
   onMount(async function () {
@@ -16,13 +17,16 @@
 
     const sliders = document.querySelectorAll('input[type="range"]')
     sliders.forEach(slider => updateSliderBackground(slider))
+
+    const savedState = localStorage.getItem('isAudioListVisible');
+    if (savedState !== null) {
+      isAudioListVisible = JSON.parse(savedState); // String in Boolean umwandeln
+    }
   })
 
   async function fetchInputs() {
-    console.log('start 1')
     let data = await sendCommand('GetInputList')
-    console.log('GetSceneList', data)
-
+    data.inputs.reverse()
     inputs = []
     for (let input of data.inputs) {
       let muteData = await sendCommand('GetInputMute', {
@@ -31,18 +35,16 @@
       let volumeData = await sendCommand('GetInputVolume', {
         inputUuid: input.inputUuid
       })
-      console.log(Object.keys(muteData).length, Object.keys(volumeData).length)
+      //console.log(Object.keys(muteData).length, Object.keys(volumeData).length)
       if (Object.keys(muteData).length > 0 && Object.keys(volumeData).length > 0) {
         input.inputMuted = muteData.inputMuted
         input.inputVolumeDb = volumeData.inputVolumeDb
         input.inputVolumeMul = volumeData.inputVolumeMul
-        console.log(input)
+        //console.log(input)
         inputs = [...inputs, input]
       }
     }
-    console.log(inputs)
-    //data = await sendCommand('GetInputKindList')
-    //console.log('GetInputKindList', data)
+    //console.log(inputs)
   }
 
   obs.on('InputCreated', async (data) => {
@@ -57,7 +59,7 @@
     for (let i = 0; i < inputs.length; i++) {
       if (inputs[i].inputUuid === data.inputUuid) {
         inputs[i].inputName = data.inputName
-        console.log(inputs[i].inputName, 'changed')
+        //console.log(inputs[i].inputName, 'changed')
       }
     }
   })
@@ -66,7 +68,7 @@
     for (let i = 0; i < inputs.length; i++) {
       if (inputs[i].inputUuid === data.inputUuid) {
         inputs[i].inputMuted = data.inputMuted
-        console.log(inputs[i].inputName, inputs[i].inputMuted)
+        //console.log(inputs[i].inputName, inputs[i].inputMuted)
       }
     }
   })
@@ -79,8 +81,14 @@
         //console.log(inputs[i].inputName, inputs[i].inputVolumeDb, inputs[i].inputVolumeMul)
       }
     }
-    const sliders = document.querySelectorAll('input[type="range"]')
-    sliders.forEach(slider => updateSliderBackground(slider))
+    //const sliders = document.querySelectorAll('input[type="range"]')
+    //sliders.forEach(slider => updateSliderBackground(slider))
+    const slider = document.querySelector(`input[data-uuid="${data.inputUuid}"]`);
+    if (slider) {
+      console.log('Slider found for input:', data.inputName)
+      slider.value = Math.sqrt(data.inputVolumeMul); // Logarithmische Umrechnung
+      updateSliderBackground(slider); // Hintergrund aktualisieren
+    }
   })
 
   async function toggleMute(input) {
@@ -91,55 +99,79 @@
   }
 
   async function setVolume(input, event) {
-    let volume = parseFloat(event.target.value)
+    let linearValue = parseFloat(event.target.value)
+    let volume = Math.pow(linearValue, 2); // Quadratische Skala (logarithmisch)
     //console.log(volume)
     await sendCommand('SetInputVolume', {
       inputUuid: input.inputUuid,
       inputVolumeMul: volume
     })
+
+    input.inputVolumeMul = volume; // Aktualisiere den Wert im Input-Objekt
     updateSliderBackground(event.target)
   }
 
   function updateSliderBackground(slider) {
     let value = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    slider.value = slider.value; // Setze den Wert des Sliders auf den Prozentsatz
     slider.style.background = `linear-gradient(to right, #3e8ed0 ${value}%, #aaaaaa ${value}%)`
+  }
+
+  function toggleListVisibility() {
+    isAudioListVisible = !isAudioListVisible; // Sichtbarkeit umschalten
+    localStorage.setItem('isAudioListVisible', JSON.stringify(isAudioListVisible)); // Zustand speichern
+
+    setTimeout(() => {
+      const sliders = document.querySelectorAll('input[type="range"]');
+      sliders.forEach(slider => updateSliderBackground(slider));
+    }, 0); 
   }
 </script>
 
-<div class="controls">
-  {#each inputs as input}
-    <div class="audio-control">
-      <div class="input-name">{input.inputName}
-        <div class="controls-row">
-          <button class="mute-button" on:click={() => toggleMute(input)}>
-            <span class="icon">
-              {#if input.inputMuted}
-                <Icon path={mdiVolumeMute} color='red'/>
-              {:else}
-                <Icon path={mdiVolumeHigh} />
-              {/if}
-            </span>
-          </button>
-          <input
-            class="volume-slider"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={input.inputVolumeMul}
-            on:input={(event) => setVolume(input, event)}
-          />
+<div class="audio-switcher">
+  <h2>
+    <strong>
+      <button class="toggle-button" on:click={toggleListVisibility}>
+        {isAudioListVisible ? '▼ Audio' : '▶ Audio'}
+      </button>
+    </strong>
+  </h2>
+  {#if isAudioListVisible}
+    {#each inputs as input}
+      <div class="audio-control">
+        <div class="input-name">{input.inputName}
+          <div class="audio-switcher-row">
+            <button class="mute-button" on:click={() => toggleMute(input)}>
+              <span class="icon">
+                {#if input.inputMuted}
+                  <Icon path={mdiVolumeMute} color='red'/>
+                {:else}
+                  <Icon path={mdiVolumeHigh} />
+                {/if}
+              </span>
+            </button>
+            <input
+              class="volume-slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              data-uuid={input.inputUuid}
+              value={Math.sqrt(input.inputVolumeMul)}
+              on:input={(event) => setVolume(input, event)}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  {/each}
+    {/each}
+  {/if}
 </div>
 
+<!--value={input.inputVolumeMul}-->
 <style>
-  .controls {
+  .audio-switcher {
     display: grid;
     gap: 1rem;
-    width: 100%;
   }
 
   .audio-control {
@@ -147,16 +179,15 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
   .input-name {
     font-weight: bold;
-    margin-bottom: 0.5rem;
     width: 100%;
   }
 
-  .controls-row {
+  .audio-switcher-row {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -166,8 +197,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 3rem;
-    width: 4rem;
+    height: 2rem;
     padding: 0.5rem;
     border: none;
     cursor: pointer;

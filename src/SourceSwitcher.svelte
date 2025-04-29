@@ -1,16 +1,20 @@
 <script>
-  export let buttonStyle = 'text'
   export let programScene
-  export let programSources
   let items = []
-  const itemsIndex = {}
 
   import { onMount } from 'svelte'
   import { obs, sendCommand } from './obs.js'
   import SourceButton from './SourceButton.svelte'
 
+  let isSourceListVisible = true;
+
   onMount(async function () {
     await refreshItems()
+
+    const savedState = localStorage.getItem('isSourceListVisible');
+    if (savedState !== null) {
+      isSourceListVisible = JSON.parse(savedState); // String in Boolean umwandeln
+    }
   })
 
   $: if (programScene) {
@@ -20,128 +24,122 @@
   async function refreshItems () {
     //console.log('sceneName', programScene)
     const data = await sendCommand('GetSceneItemList', { sceneName: programScene })
-    items = []
-    programSources = ''
-    items = data.sceneItems || items
-    items.reverse()
+    let itemshlp = []
+    itemshlp = data.sceneItems || itemshlp
+    itemshlp.reverse()
+    let i = 0;
     //console.log('GetSceneItemList', data)
-    if (items.length > 0) {
-      let i = 0;
-      const item = items[i]
-      itemsIndex[item.sceneItemId] = i
-      programSources += item.sourceName
-      i++
-      for (; i < items.length; i++) {
-        const item = items[i]
-        itemsIndex[item.sceneItemId] = i
-        programSources += ', ' + item.sourceName
+    if (itemshlp.length > 0) {
+      for (i = 0; i < itemshlp.length; i++) {
+        if (itemshlp[i].isGroup) {
+          itemshlp[i].sceneName = programScene
+          const groupData = await sendCommand('GetGroupSceneItemList', {
+            sceneUuid: itemshlp[i].sourceUuid
+          })
+          groupData.sceneItems.reverse()
+          //console.log('groupData', groupData)
+          //die groupData ist ein array mit items. Diese zu dem items[i] an diser stelle dazwischen einfügen
+          //in jedes item der groupData den name der guppe einfügen, der es zugehört
+          for (let j = 0; j < groupData.sceneItems.length; j++) {
+            groupData.sceneItems[j].isGroupChild = true
+            groupData.sceneItems[j].sceneName = itemshlp[i].sourceName
+            //console.log('groupData sceneName', groupData.sceneItems[j].sceneName)
+          }
+          itemshlp.splice(i + 1, 0, ...groupData.sceneItems)
+        }
+        else if (!itemshlp[i].isGroupChild)
+        {
+          itemshlp[i].sceneName = programScene
+        }
       }
-    } 
-    else {
-      programSources = 'n/a'
     }
-    //console.log('programSources', programSources)
+    items = itemshlp
+    //console.log('items', items)
   }
 
   obs.on('SceneItemEnableStateChanged', async (data) => {
-    if (data.sceneName === programScene) {
-      const i = itemsIndex[data.sceneItemId]
-      items[i].sceneItemEnabled = data.sceneItemEnabled
+    //console.log('SceneItemEnableStateChanged', data)
+    //iteriere durch alle items und finde das item wo die sceneItemId mit der id übereinstimmt und der sceneName mit dem sceneName übereinstimmt
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].sceneItemId === data.sceneItemId && items[i].sceneName === data.sceneName) {
+        //console.log('SceneItemEnableStateChanged i', i, items[i])
+        items[i].sceneItemEnabled = data.sceneItemEnabled
+      }
     }
   })
 
   obs.on('SceneItemListReindexed', async (data) => {
-    if (data.sceneName === programScene) {
-      await refreshItems()
-    }
+    await refreshItems()
   })
 
   obs.on('SceneItemCreated', async (data) => {
-    if (data.sceneName === programScene) {
-      await refreshItems()
-    }
+    await refreshItems()
   })
 
   obs.on('SceneItemRemoved', async (data) => {
-    if (data.sceneName === programScene) {
-      await refreshItems()
-    }
+    await refreshItems()
   })
 
   function backgroundClicker (item) {
     return async function () {
-      let data = null
       //console.log('item', item)
-      //This is a fix if a camera was disconnected. Resetting the settings seems to reload the stream/device
-      data = await sendCommand('GetInputSettings', {
-        inputUuid: item.sourceUuid
-      })
-      //console.log('1 GetInputSettings', data)
       if (item.sceneItemEnabled) {
         await sendCommand('SetSceneItemEnabled', {
-          sceneName: programScene,
+          sceneName: item.sceneName,
           sceneItemId: item.sceneItemId,
           sceneItemEnabled: false
         })
-        if (data && data.inputSettings && 'active' in data.inputSettings) {
-          data.inputSettings.active = false
-        }
       }
       else {
         await sendCommand('SetSceneItemEnabled', {
-          sceneName: programScene,
+          sceneName: item.sceneName,
           sceneItemId: item.sceneItemId,
           sceneItemEnabled: true
         })
-        if (data && data.inputSettings && 'active' in data.inputSettings) {
-          data.inputSettings.active = true
-        }
       }
-      //console.log('2 GetInputSettings', data)
-      await sendCommand('SetInputSettings', {
-        inputUuid: item.sourceUuid,
-        inputSettings: data.inputSettings
-      })
     }
+  }
+
+  function toggleListVisibility() {
+    isSourceListVisible = !isSourceListVisible; // Sichtbarkeit umschalten
+    localStorage.setItem('isSourceListVisible', JSON.stringify(isSourceListVisible)); // Zustand speichern
   }
 </script>
 
-<ol>
-  {#each items as item}
-  <li>
-    <SourceButton name={item.sourceName}
-      on:click={backgroundClicker(item)}
-      isProgram={item.sceneItemEnabled}
-      buttonStyle={buttonStyle}
-    />
-  </li>
-  {/each}
-</ol>
+<div class="source-switcher">
+  <h2>
+    <strong>
+      <button class="toggle-button" on:click={toggleListVisibility}>
+        {isSourceListVisible ? '▼ Sources' : '▶ Sources'}
+      </button>
+    </strong>
+  </h2>
+  {#if isSourceListVisible}
+    <ol>
+      {#each items as item}
+      <li>
+        <SourceButton name={item.sourceName}
+          on:click={backgroundClicker(item)}
+          isActive={item.sceneItemEnabled}
+          isGroup={item.isGroup}
+          isGroupChild={item.isGroupChild}
+        />
+      </li>
+      {/each}
+    </ol>
+  {/if}
+</div>
 
 <style>
-  /*ol {
-    list-style: None;
-    display: flex;
-    flex-wrap: wrap;
-    align-content: space-between;
-    gap: .5rem;
-    margin-bottom: 2rem;
-  }
-  li {
-    max-width: 192px;
-    white-space: nowrap;
-  }*/
   ol {
+    width: 100%;
     list-style: None;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: .5rem;
+    display: block;
     margin-bottom: 2rem;
   }
   li {
-    display: inline-block;
-    min-width: 10rem;
-    flex-grow: 1;
+    display: block;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 </style>
